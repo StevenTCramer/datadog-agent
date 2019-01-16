@@ -16,8 +16,8 @@ if trace_agent_version.nil? || trace_agent_version.empty?
 end
 default_version trace_agent_version
 
-source git: 'https://github.com/DataDog/datadog-trace-agent.git'
-relative_path 'src/github.com/DataDog/datadog-trace-agent'
+source path: '..'
+relative_path 'src/github.com/DataDog/datadog-agent'
 
 if windows?
   trace_agent_binary = "trace-agent.exe"
@@ -54,9 +54,17 @@ build do
 
     # build trace-agent
     if windows?
-      command "make windows", :env => env
+      maj_ver, min_ver, patch_ver = trace_agent_version.split('.')
+      maj_ver ||= "0"
+      min_ver ||= "99"
+      patch_ver ||= "0"
+
+      command "windmc --target pe-x86-64 -r cmd/trace-agent/windows_resources cmd/trace-agent/windows_resources/trace-agent-msg.mc", :env => env
+      command "windres --define MAJ_VER=#{maj_ver} --define MIN_VER=#{min_ver} --define PATCH_VER=#{patch_ver} -i cmd/trace-agent/windows_resources/trace-agent.rc --target=pe-x86-64 -O coff -o cmd/trace-agent/rsrc.syso", :env => env
     end
-    command "make install", :env => env
+
+    command "go generate ./pkg/trace/info", :env => env
+    command "go install ./cmd/trace-agent", :env => env
 
     # copy binary
     if windows?
